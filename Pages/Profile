@@ -1,0 +1,297 @@
+
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { User, Mail, Phone, Briefcase, Calendar, DollarSign, Save } from "lucide-react";
+
+export default function Profile() {
+  const queryClient = useQueryClient();
+
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
+  const [formData, setFormData] = useState({
+    full_name: user?.full_name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    occupation: user?.occupation || "",
+    date_of_birth: user?.date_of_birth || "",
+    monthly_budget: user?.monthly_budget || "",
+    salary_days: user?.salary_days || [], // Changed from salary_day to salary_days (array)
+    hot_charges_threshold: user?.hot_charges_threshold || 5000, // New field
+    currency: user?.currency || "₹"
+  });
+
+  const [newSalaryDay, setNewSalaryDay] = useState(""); // New state for adding salary days
+
+  React.useEffect(() => {
+    if (user) {
+      setFormData({
+        full_name: user.full_name || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        occupation: user.occupation || "",
+        date_of_birth: user.date_of_birth || "",
+        monthly_budget: user.monthly_budget || "",
+        salary_days: user.salary_days || [], // Updated field
+        hot_charges_threshold: user.hot_charges_threshold || 5000, // Updated field
+        currency: user.currency || "₹"
+      });
+    }
+  }, [user]);
+
+  const updateMutation = useMutation({
+    mutationFn: (data) => base44.auth.updateMe(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      alert('Profile updated successfully!');
+    },
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const dataToUpdate = {
+      phone: formData.phone,
+      occupation: formData.occupation,
+      date_of_birth: formData.date_of_birth,
+      monthly_budget: formData.monthly_budget ? parseFloat(formData.monthly_budget) : undefined,
+      salary_days: formData.salary_days, // Updated field
+      hot_charges_threshold: formData.hot_charges_threshold ? parseFloat(formData.hot_charges_threshold) : 5000, // New field
+      currency: formData.currency
+    };
+    updateMutation.mutate(dataToUpdate);
+  };
+
+  const addSalaryDay = () => {
+    const day = parseInt(newSalaryDay);
+    if (day >= 1 && day <= 31 && !isNaN(day) && !formData.salary_days.includes(day)) {
+      setFormData({
+        ...formData,
+        salary_days: [...formData.salary_days, day].sort((a, b) => a - b)
+      });
+      setNewSalaryDay("");
+    }
+  };
+
+  const removeSalaryDay = (day) => {
+    setFormData({
+      ...formData,
+      salary_days: formData.salary_days.filter(d => d !== day)
+    });
+  };
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Profile Settings</h1>
+          <p className="text-gray-400 mt-1">Manage your personal information and preferences</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Personal Information */}
+          <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Personal Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name" className="text-gray-300 flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Full Name
+                  </Label>
+                  <Input
+                    id="full_name"
+                    value={formData.full_name}
+                    disabled
+                    className="bg-white/5 border-white/20 text-gray-400"
+                  />
+                  <p className="text-xs text-gray-500">Contact support to change your name</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-gray-300 flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    value={formData.email}
+                    disabled
+                    className="bg-white/5 border-white/20 text-gray-400"
+                  />
+                  <p className="text-xs text-gray-500">Email cannot be changed</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-gray-300 flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    placeholder="+1 234 567 8900"
+                    className="bg-white/5 border-white/20 text-white placeholder:text-gray-500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="date_of_birth" className="text-gray-300 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Date of Birth
+                  </Label>
+                  <Input
+                    id="date_of_birth"
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => setFormData({...formData, date_of_birth: e.target.value})}
+                    className="bg-white/5 border-white/20 text-white"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="occupation" className="text-gray-300 flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" />
+                    Occupation
+                  </Label>
+                  <Input
+                    id="occupation"
+                    value={formData.occupation}
+                    onChange={(e) => setFormData({...formData, occupation: e.target.value})}
+                    placeholder="Software Engineer, Doctor, etc."
+                    className="bg-white/5 border-white/20 text-white placeholder:text-gray-500"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Financial Settings */}
+          <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-xl font-bold text-white flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Financial Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-6"> {/* Added outer div for space-y-6 */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="monthly_budget" className="text-gray-300">Monthly Budget</Label>
+                    <Input
+                      id="monthly_budget"
+                      type="number"
+                      step="0.01"
+                      value={formData.monthly_budget}
+                      onChange={(e) => setFormData({...formData, monthly_budget: e.target.value})}
+                      placeholder="5000"
+                      className="bg-white/5 border-white/20 text-white placeholder:text-gray-500"
+                    />
+                    <p className="text-xs text-gray-500">Your spending limit for each month</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="hot_charges_threshold" className="text-gray-300">Hot Charges Threshold</Label>
+                    <Input
+                      id="hot_charges_threshold"
+                      type="number"
+                      step="0.01"
+                      value={formData.hot_charges_threshold}
+                      onChange={(e) => setFormData({...formData, hot_charges_threshold: e.target.value})}
+                      placeholder="5000"
+                      className="bg-white/5 border-white/20 text-white placeholder:text-gray-500"
+                    />
+                    <p className="text-xs text-gray-500">Expenses above this amount are highlighted</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="currency" className="text-gray-300">Currency Symbol</Label>
+                    <select
+                      id="currency"
+                      value={formData.currency}
+                      onChange={(e) => setFormData({...formData, currency: e.target.value})}
+                      className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+                    >
+                      <option value="₹">₹ (Rupee)</option>
+                      <option value="$">$ (Dollar)</option>
+                      <option value="€">€ (Euro)</option>
+                      <option value="£">£ (Pound)</option>
+                      <option value="¥">¥ (Yen)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Salary Days</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={newSalaryDay}
+                      onChange={(e) => setNewSalaryDay(e.target.value)}
+                      placeholder="Add day (1-31)"
+                      className="bg-white/5 border-white/20 text-white placeholder:text-gray-500"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addSalaryDay}
+                      className="bg-amber-500 hover:bg-amber-600"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {formData.salary_days.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {formData.salary_days.map((day) => (
+                        <div
+                          key={day}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/20 border border-amber-500/30"
+                        >
+                          <span className="text-white font-medium">Day {day}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeSalaryDay(day)}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-500">Days of month when you receive salary</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button 
+              type="submit" 
+              className="bg-amber-500 hover:bg-amber-600 text-white px-8"
+              disabled={updateMutation.isPending}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
