@@ -1,0 +1,25 @@
+{
+  "name": "Friend",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Friend's name"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email address"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about this person"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
