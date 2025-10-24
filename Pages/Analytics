@@ -1,0 +1,193 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { startOfMonth, endOfMonth, startOfDay, format, subMonths, subDays, isAfter, isBefore, isSameDay } from "date-fns";
+
+export default function Analytics() {
+  const [timeRange, setTimeRange] = useState("30days");
+
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses'],
+    queryFn: () => base44.entities.Expense.list('-date'),
+  });
+
+  const currency = user?.currency || '₹';
+
+  // Daily data for last 30 days
+  const getDailyData = () => {
+    const daysData = [];
+    const daysToShow = timeRange === "30days" ? 30 : timeRange === "14days" ? 14 : 7;
+    
+    for (let i = daysToShow - 1; i >= 0; i--) {
+      const date = subDays(new Date(), i);
+      const dayExpenses = expenses.filter(exp => 
+        isSameDay(new Date(exp.date), date)
+      );
+
+      daysData.push({
+        name: format(date, 'MMM dd'),
+        amount: dayExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+        count: dayExpenses.length
+      });
+    }
+    return daysData;
+  };
+
+  // Monthly data for last 6 months
+  const getMonthlyData = () => {
+    const monthsData = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = subMonths(new Date(), i);
+      const start = startOfMonth(date);
+      const end = endOfMonth(date);
+      
+      const monthExpenses = expenses.filter(exp => {
+        const expDate = new Date(exp.date);
+        return isAfter(expDate, start) && isBefore(expDate, end);
+      });
+
+      monthsData.push({
+        name: format(date, 'MMM yy'),
+        amount: monthExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+        count: monthExpenses.length
+      });
+    }
+    return monthsData;
+  };
+
+  // Category breakdown
+  const getCategoryData = () => {
+    const categoryTotals = expenses.reduce((acc, expense) => {
+      acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+      return acc;
+    }, {});
+
+    return Object.entries(categoryTotals)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  };
+
+  const dailyData = getDailyData();
+  const monthlyData = getMonthlyData();
+  const categoryData = getCategoryData();
+
+  const COLORS = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'];
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Analytics</h1>
+            <p className="text-gray-400 mt-1">Visualize your spending patterns</p>
+          </div>
+          <Tabs value={timeRange} onValueChange={setTimeRange}>
+            <TabsList className="bg-white/10">
+              <TabsTrigger value="7days">7 Days</TabsTrigger>
+              <TabsTrigger value="14days">14 Days</TabsTrigger>
+              <TabsTrigger value="30days">30 Days</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Daily Spending */}
+        <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+          <CardHeader className="border-b border-white/10">
+            <CardTitle className="text-xl font-bold text-white">Daily Spending Pattern</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dailyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
+                <XAxis dataKey="name" stroke="#9ca3af" angle={-45} textAnchor="end" height={80} />
+                <YAxis stroke="#9ca3af" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1a2942', 
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '8px',
+                    color: '#fff'
+                  }}
+                  formatter={(value) => `${currency}${value}`}
+                />
+                <Bar dataKey="amount" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Monthly Comparison */}
+          <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-xl font-bold text-white">Monthly Comparison</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff20" />
+                  <XAxis dataKey="name" stroke="#9ca3af" />
+                  <YAxis stroke="#9ca3af" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1a2942', 
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }}
+                    formatter={(value) => `${currency}${value}`}
+                  />
+                  <Bar dataKey="amount" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Category Distribution */}
+          <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+            <CardHeader className="border-b border-white/10">
+              <CardTitle className="text-xl font-bold text-white">Category Distribution</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1a2942', 
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '8px',
+                      color: '#fff'
+                    }}
+                    formatter={(value) => `${currency}${value}`}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
