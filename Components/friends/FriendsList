@@ -1,0 +1,67 @@
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { User, ChevronRight } from "lucide-react";
+
+export default function FriendsList({ friends, onSelectFriend, currency }) {
+  if (friends.length === 0) {
+    return (
+      <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+        <CardContent className="p-12 text-center">
+          <User className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-400 text-lg">No friends added yet</p>
+          <p className="text-gray-500 text-sm mt-2">Add a friend to start tracking expenses</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+      <CardContent className="p-6">
+        <div className="space-y-3">
+          {friends.map((friend) => (
+            <div
+              key={friend.id}
+              onClick={() => onSelectFriend(friend)}
+              className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 cursor-pointer group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg">
+                  <span className="text-white font-bold text-lg">
+                    {friend.name[0].toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-medium text-white text-lg">{friend.name}</p>
+                  {friend.phone && (
+                    <p className="text-sm text-gray-400">{friend.phone}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {friend.balance === 0 ? (
+                  <span className="text-gray-400 font-medium">Settled up</span>
+                ) : friend.balance > 0 ? (
+                  <div className="text-right">
+                    <p className="text-green-400 font-bold text-lg">
+                      {currency}{Math.abs(friend.balance).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-400">owes you</p>
+                  </div>
+                ) : (
+                  <div className="text-right">
+                    <p className="text-red-400 font-bold text-lg">
+                      {currency}{Math.abs(friend.balance).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-400">you owe</p>
+                  </div>
+                )}
+                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-400 transition-colors" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
