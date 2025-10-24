@@ -1,0 +1,57 @@
+{
+  "name": "Expense",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "What was purchased or paid for"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Amount spent"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Bills & Rents",
+        "Education",
+        "Entertainment",
+        "Food & Dining",
+        "Groceries",
+        "Healthcare",
+        "Personal Care",
+        "Shopping",
+        "Transportation",
+        "Travel",
+        "Other"
+      ],
+      "description": "Category of expense"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of expense"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "Cash",
+        "Credit Card",
+        "Debit Card",
+        "UPI",
+        "Net Banking"
+      ],
+      "description": "How the payment was made"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the expense"
+    }
+  },
+  "required": [
+    "title",
+    "amount",
+    "category",
+    "date"
+  ]
+}
