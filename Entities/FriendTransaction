@@ -1,0 +1,48 @@
+{
+  "name": "FriendTransaction",
+  "type": "object",
+  "properties": {
+    "friend_id": {
+      "type": "string",
+      "description": "ID of the friend this transaction is with"
+    },
+    "friend_name": {
+      "type": "string",
+      "description": "Name of the friend (for quick display)"
+    },
+    "transaction_type": {
+      "type": "string",
+      "enum": [
+        "you_lent",
+        "you_borrowed"
+      ],
+      "description": "Whether you lent money to them or borrowed from them"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Amount of money involved"
+    },
+    "description": {
+      "type": "string",
+      "description": "What was this transaction for"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of transaction"
+    },
+    "settled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this transaction has been settled"
+    }
+  },
+  "required": [
+    "friend_id",
+    "friend_name",
+    "transaction_type",
+    "amount",
+    "description",
+    "date"
+  ]
+}
