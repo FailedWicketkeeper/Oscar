@@ -1,0 +1,337 @@
+
+import React from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { 
+  Wallet, 
+  TrendingUp, 
+  AlertCircle, 
+  Calendar,
+  Plus,
+  ArrowUpRight,
+  DollarSign,
+  Target,
+  Flame
+} from "lucide-react";
+import { format, startOfMonth, endOfMonth, isAfter, isBefore, addDays, isFuture, isToday } from "date-fns";
+
+export default function Dashboard() {
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses'],
+    queryFn: () => base44.entities.Expense.list('-date'),
+  });
+
+  const { data: reminders = [] } = useQuery({
+    queryKey: ['reminders'],
+    queryFn: () => base44.entities.Reminder.list('date'),
+  });
+
+  const currency = user?.currency || '₹';
+  const monthlyBudget = user?.monthly_budget || 0;
+  const hotChargesThreshold = user?.hot_charges_threshold || 5000;
+
+  const currentMonthExpenses = expenses.filter(expense => {
+    const expenseDate = new Date(expense.date);
+    const start = startOfMonth(new Date());
+    const end = endOfMonth(new Date());
+    return isAfter(expenseDate, start) && isBefore(expenseDate, end);
+  });
+
+  const currentMonthTotal = currentMonthExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+  const budgetPercentage = monthlyBudget > 0 ? (currentMonthTotal / monthlyBudget) * 100 : 0;
+  const remaining = monthlyBudget - currentMonthTotal;
+
+  // Get status based on remaining budget percentage
+  const getStatus = () => {
+    const remainingPercentage = monthlyBudget > 0 ? (remaining / monthlyBudget) * 100 : 0;
+    if (remainingPercentage > 50) return { text: 'Excellent', color: 'text-green-400', bg: 'bg-green-400' };
+    if (remainingPercentage > 25) return { text: 'Good', color: 'text-lime-400', bg: 'bg-lime-400' };
+    if (remainingPercentage > 10) return { text: 'Warning', color: 'text-amber-400', bg: 'bg-amber-400' };
+    if (remainingPercentage > 0) return { text: 'Critical', color: 'text-orange-400', bg: 'bg-orange-400' };
+    return { text: 'Over Budget', color: 'text-red-400', bg: 'bg-red-400' };
+  };
+
+  const status = getStatus();
+
+  // Hot Charges - expenses above threshold
+  const hotCharges = currentMonthExpenses
+    .filter(exp => exp.amount >= hotChargesThreshold)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 5);
+
+  // Get upcoming reminders - all future reminders that are not completed
+  const upcomingReminders = reminders
+    .filter(reminder => !reminder.completed)
+    .filter(reminder => {
+      const reminderDate = new Date(reminder.date);
+      return isFuture(reminderDate) || isToday(reminderDate);
+    })
+    .slice(0, 5);
+
+  const recentExpenses = expenses.slice(0, 5);
+
+  // Get user's first name
+  const firstName = user?.full_name?.trim().split(' ')[0] || user?.email?.split('@')[0] || 'there';
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-3xl md:text-4xl font-bold text-white">
+            Welcome back, {firstName}!
+          </h1>
+          <p className="text-gray-400">Here's your financial overview for {format(new Date(), 'MMMM yyyy')}</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-br from-white/10 to-white/5 border-white/20 backdrop-blur-xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-300">
+                  Monthly Budget
+                </CardTitle>
+                <Target className="w-5 h-5 text-amber-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-white">
+                {currency}{monthlyBudget.toLocaleString()}
+              </div>
+              <Link to={createPageUrl("Profile")}>
+                <p className="text-xs text-amber-400 mt-2 flex items-center gap-1 hover:underline">
+                  Set budget <ArrowUpRight className="w-3 h-3" />
+                </p>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-white/10 to-white/5 border-white/20 backdrop-blur-xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-300">
+                  Spent this month
+                </CardTitle>
+                <Wallet className="w-5 h-5 text-blue-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-white">
+                {currency}{currentMonthTotal.toLocaleString()}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {currentMonthExpenses.length} transactions
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-white/10 to-white/5 border-white/20 backdrop-blur-xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-300">
+                  Remaining Budget
+                </CardTitle>
+                <DollarSign className="w-5 h-5 text-green-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-3xl font-bold ${remaining >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {currency}{Math.abs(remaining).toLocaleString()}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {budgetPercentage.toFixed(1)}% of budget used
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-white/10 to-white/5 border-white/20 backdrop-blur-xl">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-gray-300">
+                  Status
+                </CardTitle>
+                {budgetPercentage >= 90 ? (
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                ) : (
+                  <TrendingUp className="w-5 h-5 text-green-400" />
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${status.color}`}>
+                {status.text}
+              </div>
+              <div className="w-full bg-white/10 rounded-full h-2 mt-3">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-500 ${status.bg}`}
+                  style={{ width: `${Math.min(budgetPercentage, 100)}%` }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Recent Expenses */}
+          <Card className="lg:col-span-2 bg-white/10 border-white/20 backdrop-blur-xl">
+            <CardHeader className="border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-bold text-white">Recent Expenses</CardTitle>
+                <Link to={createPageUrl("Expenses")}>
+                  <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-300 hover:bg-white/10">
+                    View All
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {recentExpenses.length > 0 ? (
+                <div className="space-y-4">
+                  {recentExpenses.map((expense) => (
+                    <div key={expense.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors duration-200">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
+                          <Wallet className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-white">{expense.title}</p>
+                          <p className="text-sm text-gray-400">{expense.category} • {format(new Date(expense.date), 'MMM dd')}</p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-white">{currency}{expense.amount.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Wallet className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No expenses yet</p>
+                  <Link to={createPageUrl("Expenses")}>
+                    <Button className="mt-4 bg-amber-500 hover:bg-amber-600 text-white">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add First Expense
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Upcoming Reminders */}
+          <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+            <CardHeader className="border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-xl font-bold text-white">Upcoming</CardTitle>
+                <Link to={createPageUrl("Dates")}>
+                  <Button variant="ghost" size="sm" className="text-amber-400 hover:text-amber-300 hover:bg-white/10">
+                    View All
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {upcomingReminders.length > 0 ? (
+                <div className="space-y-4">
+                  {upcomingReminders.map((reminder) => (
+                    <div key={reminder.id} className="p-4 rounded-xl bg-white/5 border border-white/10">
+                      <div className="flex items-start gap-3">
+                        <Calendar className="w-5 h-5 text-amber-400 mt-1" />
+                        <div className="flex-1">
+                          <p className="font-medium text-white">{reminder.title}</p>
+                          <p className="text-sm text-gray-400 mt-1">{format(new Date(reminder.date), 'MMM dd, yyyy')}</p>
+                          {reminder.amount && (
+                            <p className="text-sm text-amber-400 mt-1">{currency}{reminder.amount.toLocaleString()}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 text-sm">No upcoming reminders</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Hot Charges Section */}
+        {hotCharges.length > 0 && (
+          <Card className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/30 backdrop-blur-xl">
+            <CardHeader className="border-b border-red-500/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-6 h-6 text-red-400" />
+                  <CardTitle className="text-xl font-bold text-white">Hot Charges</CardTitle>
+                </div>
+                <Link to={createPageUrl("Profile")}>
+                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/20">
+                    Set Threshold ({currency}{hotChargesThreshold})
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-sm text-gray-400 mt-1">Expenses above {currency}{hotChargesThreshold.toLocaleString()}</p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                {hotCharges.map((expense) => (
+                  <div key={expense.id} className="flex items-center justify-between p-4 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-colors duration-200">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center shadow-lg">
+                        <Flame className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-white">{expense.title}</p>
+                        <p className="text-sm text-gray-400">{expense.category} • {format(new Date(expense.date), 'MMM dd, yyyy')}</p>
+                      </div>
+                    </div>
+                    <p className="font-bold text-red-400 text-xl">{currency}{expense.amount.toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quick Actions */}
+        <Card className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 border-amber-500/30 backdrop-blur-xl">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-white mb-1">Quick Actions</h3>
+                <p className="text-gray-300 text-sm">Manage your finances efficiently</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link to={createPageUrl("Expenses")}>
+                  <Button className="bg-white text-[#1a2942] hover:bg-gray-100">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Expense
+                  </Button>
+                </Link>
+                <Link to={createPageUrl("Dates")}>
+                  <Button variant="outline" className="border-white/30 text-white hover:bg-white/10">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Add Reminder
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
