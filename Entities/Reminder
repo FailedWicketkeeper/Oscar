@@ -1,0 +1,60 @@
+{
+  "name": "Reminder",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the reminder"
+    },
+    "reminder_type": {
+      "type": "string",
+      "enum": [
+        "Salary Day",
+        "Rent Payment",
+        "EMI Payment",
+        "Bill Payment",
+        "Subscription",
+        "Shopping",
+        "Other"
+      ],
+      "description": "Type of reminder"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the reminder"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Expected amount (if applicable)"
+    },
+    "recurring": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this reminder repeats"
+    },
+    "recurring_frequency": {
+      "type": "string",
+      "enum": [
+        "Weekly",
+        "Monthly",
+        "Yearly"
+      ],
+      "description": "How often it repeats"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this reminder has been completed"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional details"
+    }
+  },
+  "required": [
+    "title",
+    "reminder_type",
+    "date"
+  ]
+}
