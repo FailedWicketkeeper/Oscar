@@ -1,0 +1,163 @@
+
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import ExpenseForm from "../components/expenses/ExpenseForm";
+import ExpenseList from "../components/expenses/ExpenseList";
+
+export default function Expenses() {
+  const [showForm, setShowForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  
+  const queryClient = useQueryClient();
+
+  const { data: expenses = [], isLoading } = useQuery({
+    queryKey: ['expenses'],
+    queryFn: () => base44.entities.Expense.list('-date'),
+  });
+
+  const { data: user } = useQuery({
+    queryKey: ['currentUser'],
+    queryFn: () => base44.auth.me(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data) => base44.entities.Expense.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      setShowForm(false);
+      setEditingExpense(null);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Expense.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      setShowForm(false);
+      setEditingExpense(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.Expense.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+    },
+  });
+
+  const handleSubmit = (data) => {
+    if (editingExpense) {
+      updateMutation.mutate({ id: editingExpense.id, data });
+    } else {
+      createMutation.mutate(data);
+    }
+  };
+
+  const handleEdit = (expense) => {
+    setEditingExpense(expense);
+    setShowForm(true);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const filteredExpenses = expenses.filter(expense => {
+    const matchesSearch = expense.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         expense.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filterCategory === "all" || expense.category === filterCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const currency = user?.currency || '₹';
+
+  return (
+    <div className="min-h-screen p-6 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Expenses</h1>
+            <p className="text-gray-400 mt-1">Track and manage your spending</p>
+          </div>
+          <Button 
+            onClick={() => {
+              setEditingExpense(null);
+              setShowForm(!showForm);
+            }}
+            className="bg-amber-500 hover:bg-amber-600 text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Expense
+          </Button>
+        </div>
+
+        {/* Expense Form */}
+        {showForm && (
+          <ExpenseForm
+            expense={editingExpense}
+            onSubmit={handleSubmit}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingExpense(null);
+            }}
+            currency={currency}
+          />
+        )}
+
+        {/* Search and Filter */}
+        <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  placeholder="Search expenses..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/20 text-white placeholder:text-gray-400"
+                />
+              </div>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-4 py-2 rounded-lg bg-white/5 border border-white/20 text-white"
+              >
+                <option value="all">All Categories</option>
+                <option value="Bills & Rents">Bills & Rents</option>
+                <option value="Education">Education</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Food & Dining">Food & Dining</option>
+                <option value="Groceries">Groceries</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Personal Care">Personal Care</option>
+                <option value="Shopping">Shopping</option>
+                <option value="Transportation">Transportation</option>
+                <option value="Travel">Travel</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Expense List */}
+        <ExpenseList
+          expenses={filteredExpenses}
+          isLoading={isLoading}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          currency={currency}
+        />
+      </div>
+    </div>
+  );
+}
