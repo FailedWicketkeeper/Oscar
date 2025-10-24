@@ -1,0 +1,140 @@
+
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Pencil, Trash2, Wallet } from "lucide-react";
+import { format } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const categoryColors = {
+  "Food & Dining": "from-orange-400 to-red-500",
+  "Groceries": "from-green-400 to-emerald-500",
+  "Shopping": "from-pink-400 to-purple-500",
+  "Transportation": "from-blue-400 to-cyan-500",
+  "Bills & Rents": "from-yellow-400 to-orange-500",
+  "Entertainment": "from-purple-400 to-pink-500",
+  "Healthcare": "from-red-400 to-pink-500",
+  "Education": "from-green-400 to-blue-500",
+  "Travel": "from-cyan-400 to-blue-500",
+  "Personal Care": "from-pink-400 to-red-500",
+  "Other": "from-gray-400 to-gray-600"
+};
+
+export default function ExpenseList({ expenses, isLoading, onEdit, onDelete, currency }) {
+  if (isLoading) {
+    return (
+      <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/5">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="w-12 h-12 rounded-full" />
+                  <div>
+                    <Skeleton className="h-4 w-32 mb-2" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-20" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (expenses.length === 0) {
+    return (
+      <Card className="bg-white/10 border-white/20 backdrop-blur-xl">
+        <CardContent className="p-12 text-center">
+          <Wallet className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <p className="text-gray-400 text-lg">No expenses found</p>
+          <p className="text-gray-500 text-sm mt-2">Start tracking by adding your first expense</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Group expenses by date
+  const groupedExpenses = expenses.reduce((groups, expense) => {
+    const date = format(new Date(expense.date), 'yyyy-MM-dd');
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(expense);
+    return groups;
+  }, {});
+
+  return (
+    <div className="space-y-6">
+      {Object.entries(groupedExpenses).map(([date, dateExpenses]) => (
+        <Card key={date} className="bg-white/10 border-white/20 backdrop-blur-xl">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              {format(new Date(date), 'EEEE, MMMM dd, yyyy')}
+            </h3>
+            <div className="space-y-3">
+              {dateExpenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className="flex items-center justify-between p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${categoryColors[expense.category]} flex items-center justify-center shadow-lg`}>
+                      <Wallet className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-white">{expense.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm text-gray-400">{expense.category}</span>
+                        {expense.payment_method && (
+                          <>
+                            <span className="text-gray-600">•</span>
+                            <span className="text-sm text-gray-400">{expense.payment_method}</span>
+                          </>
+                        )}
+                      </div>
+                      {expense.notes && (
+                        <p className="text-sm text-gray-500 mt-1">{expense.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="font-bold text-white text-lg">{currency}{expense.amount.toLocaleString()}</p>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(expense)}
+                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(expense.id)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400">Day Total</span>
+                <span className="font-bold text-white text-xl">
+                  {currency}{dateExpenses.reduce((sum, exp) => sum + exp.amount, 0).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
